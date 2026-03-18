@@ -1,0 +1,32 @@
+<Application x:Class="Epsilon.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:conv="clr-namespace:Epsilon.App.Converters"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Dark" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <conv:TabBrushConverter x:Key="TabBrush" />
+            <conv:FileSizeConverter x:Key="FileSize" />
+            <conv:StreamButtonConverter x:Key="StreamButtonConverter" />
+            <conv:NonEmptyVisibilityConverter x:Key="NonEmptyVisibility" />
+            <conv:ZeroVisibilityConverter x:Key="ZeroVisibility" />
+            <conv:StatusBrushConverter x:Key="StatusBrush" />
+            <conv:BoolToVisibilityConverter x:Key="BoolVisibility" />
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolVisibility" />
+            <conv:NonZeroVisibilityConverter x:Key="NonZeroVisibility" />
+            <conv:ActiveStepBrushConverter x:Key="ActiveStepBrush" />
+            <conv:PlusOneConverter x:Key="PlusOne" />
+            <conv:WebToggleBrushConverter x:Key="WebToggleBrush" />
+            <conv:WebToggleForegroundConverter x:Key="WebToggleFg" />
+            <conv:WebToggleTextConverter x:Key="WebToggleText" />
+            <conv:EmptyStringVisibilityConverter x:Key="EmptyVisibility" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

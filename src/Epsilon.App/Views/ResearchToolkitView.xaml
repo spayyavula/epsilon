@@ -1,0 +1,266 @@
+<UserControl x:Class="Epsilon.App.Views.ResearchToolkitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf">
+
+    <Grid Background="#0f0f23">
+        <!-- State A: Project List -->
+        <Grid Visibility="{Binding ShowProjectList, Converter={StaticResource BoolVisibility}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock Grid.Row="0" Text="Research Toolkit" FontSize="24" FontWeight="Bold"
+                       Foreground="#63e6be" Margin="32,24,32,16"/>
+
+            <!-- Tool Cards -->
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Tools}" Margin="32,0,32,16">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#1a1a2e" CornerRadius="10" Padding="16" Margin="0,0,12,12"
+                                Width="210" Cursor="Hand"
+                                BorderBrush="#2a2a4a" BorderThickness="1"
+                                MouseLeftButtonDown="ToolCard_Click">
+                            <Border.Tag>
+                                <Binding Path="ToolType"/>
+                            </Border.Tag>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Icon}" FontSize="28" Margin="0,0,0,8"/>
+                                <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="Bold"
+                                           Foreground="#eee" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#888"
+                                           TextWrapping="Wrap" MaxHeight="54" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Recent Projects -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="32,0,32,32">
+                    <TextBlock Text="RECENT PROJECTS" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#666" Margin="0,0,0,8"
+                               Visibility="{Binding Projects.Count, Converter={StaticResource NonZeroVisibility}}"/>
+
+                    <ItemsControl ItemsSource="{Binding Projects}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1a1a2e" CornerRadius="8" Padding="14" Margin="0,0,0,6"
+                                        Cursor="Hand" MouseLeftButtonDown="ProjectCard_Click">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Delete"
+                                                Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                Foreground="#ff6b6b" Background="Transparent"
+                                                VerticalAlignment="Center" Padding="8,4" FontSize="12"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="#eee" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <Border Background="#2a2a4a" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding ToolType}" FontSize="11" Foreground="#888"/>
+                                                </Border>
+                                                <Border CornerRadius="4" Padding="6,2" Margin="0,0,8,0"
+                                                        Background="{Binding Status, Converter={StaticResource StatusBrush}}">
+                                                    <TextBlock Text="{Binding Status}" FontSize="11" Foreground="White"/>
+                                                </Border>
+                                                <TextBlock Foreground="#555" FontSize="11" VerticalAlignment="Center">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0:g}">
+                                                            <Binding Path="UpdatedAt"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- State B: Active Project Editor -->
+        <Grid Visibility="{Binding ShowProjectList, Converter={StaticResource InverseBoolVisibility}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Step Navigator -->
+            <Border Grid.Column="0" Background="#1a1a2e" BorderBrush="#2a2a4a" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="12,12,12,8">
+                        <Button Content="&#8592; Projects" Command="{Binding BackToListCommand}"
+                                HorizontalAlignment="Left" Padding="8,4" Background="Transparent"
+                                Foreground="#63e6be" FontSize="12"/>
+                        <TextBlock Text="{Binding ActiveProject.Title}" Foreground="#aaa" FontSize="12"
+                                   Margin="0,8,0,0" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                                   MaxHeight="40"/>
+                    </StackPanel>
+
+                    <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding StepList}" Margin="8,8,8,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10,8" Margin="0,1" CornerRadius="6" Cursor="Hand"
+                                        MouseLeftButtonDown="StepItem_Click"
+                                        Background="{Binding IsActive, Converter={StaticResource ActiveStepBrush}}">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Left" Foreground="#69db7c" FontSize="12"
+                                                   Margin="0,0,6,0" VerticalAlignment="Center"
+                                                   Text="&#10003;"
+                                                   Visibility="{Binding IsCompleted, Converter={StaticResource BoolVisibility}}"/>
+                                        <TextBlock Foreground="#ccc" FontSize="13">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0}. {1}">
+                                                    <Binding Path="Index" Converter="{StaticResource PlusOne}"/>
+                                                    <Binding Path="Label"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Export button at bottom -->
+                    <Button DockPanel.Dock="Bottom" Content="Export PDF" Command="{Binding ExportProjectCommand}"
+                            Background="#f59f00" Foreground="Black" FontWeight="SemiBold"
+                            Padding="12,8" Margin="12,8,12,12" HorizontalAlignment="Stretch"/>
+                    <StackPanel/>
+                </DockPanel>
+            </Border>
+
+            <!-- Main Editing Area -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Step Header -->
+                <Border Grid.Row="0" Background="#1a1a2e" BorderBrush="#2a2a4a" BorderThickness="0,0,0,1" Padding="20,12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" FontSize="18" FontWeight="Bold" Foreground="#63e6be"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Step {0}/{1}: {2}">
+                                    <Binding Path="CurrentStepIndex" Converter="{StaticResource PlusOne}"/>
+                                    <Binding Path="TotalSteps"/>
+                                    <Binding Path="CurrentStepLabel"/>
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+
+                        <!-- Provider/Model selectors -->
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ComboBox ItemsSource="{Binding Providers}" DisplayMemberPath="Name"
+                                      SelectedValuePath="Id" SelectedValue="{Binding SelectedProviderId}"
+                                      Width="120" FontSize="11" Margin="0,0,4,0"/>
+                            <ComboBox ItemsSource="{Binding Models}" DisplayMemberPath="Name"
+                                      SelectedValuePath="Id" SelectedValue="{Binding SelectedModelId}"
+                                      Width="140" FontSize="11"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Input Area -->
+                <Border Grid.Row="1" Background="#141428" BorderBrush="#2a2a4a" BorderThickness="0,0,0,1"
+                        Padding="20,12" MaxHeight="220"
+                        Visibility="{Binding IsAutoGenerateStep, Converter={StaticResource InverseBoolVisibility}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding CurrentInputLabel}" Foreground="#888"
+                                   FontSize="12" Margin="0,0,0,6"/>
+                        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Generate" Command="{Binding GenerateStepCommand}"
+                                        Background="#20c997" Foreground="White" FontWeight="SemiBold"
+                                        Padding="16,8" Margin="4,0,0,0"
+                                        Visibility="{Binding IsGenerating, Converter={StaticResource InverseBoolVisibility}}"/>
+                                <Button Content="Stop" Command="{Binding CancelGenerationCommand}"
+                                        Background="#e03131" Foreground="White" FontWeight="SemiBold"
+                                        Padding="16,8" Margin="4,0,0,0"
+                                        Visibility="{Binding IsGenerating, Converter={StaticResource BoolVisibility}}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="#666" FontSize="11"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <TextBox Text="{Binding CurrentStepInput, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Background="#2a2a4a" Foreground="#eee" BorderThickness="1"
+                                 BorderBrush="#3a3a5a" Padding="12,10" FontSize="14" CaretBrush="White">
+                            <TextBox.ToolTip>
+                                <TextBlock Text="{Binding CurrentInputPlaceholder}"/>
+                            </TextBox.ToolTip>
+                        </TextBox>
+                    </DockPanel>
+                </Border>
+
+                <!-- Auto-generate banner -->
+                <Border Grid.Row="1" Background="#141428" BorderBrush="#2a2a4a" BorderThickness="0,0,0,1"
+                        Padding="20,16"
+                        Visibility="{Binding IsAutoGenerateStep, Converter={StaticResource BoolVisibility}}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="Generate" Command="{Binding GenerateStepCommand}"
+                                    Background="#20c997" Foreground="White" FontWeight="SemiBold"
+                                    Padding="16,8"
+                                    Visibility="{Binding IsGenerating, Converter={StaticResource InverseBoolVisibility}}"/>
+                            <Button Content="Stop" Command="{Binding CancelGenerationCommand}"
+                                    Background="#e03131" Foreground="White" FontWeight="SemiBold"
+                                    Padding="16,8"
+                                    Visibility="{Binding IsGenerating, Converter={StaticResource BoolVisibility}}"/>
+                        </StackPanel>
+                        <TextBlock Text="This section is auto-generated from your previous steps. Click Generate to create it."
+                                   Foreground="#888" FontSize="13" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Output Area (WebView2) -->
+                <Grid Grid.Row="2">
+                    <wv2:WebView2 x:Name="StepOutputWebView" DefaultBackgroundColor="#0f0f23"/>
+
+                    <!-- Empty state overlay -->
+                    <Border Background="#0f0f23" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Visibility="{Binding CurrentStepHasContent, Converter={StaticResource InverseBoolVisibility}}">
+                        <Border Background="#1e1e3a" CornerRadius="12" Padding="40,32"
+                                Visibility="{Binding IsGenerating, Converter={StaticResource InverseBoolVisibility}}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="&#9998;" FontSize="32" HorizontalAlignment="Center" Foreground="#20c997" Margin="0,0,0,12"/>
+                                <TextBlock Text="Enter your input above and click Generate" Foreground="#888" FontSize="14"/>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+                </Grid>
+
+                <!-- Navigation Footer -->
+                <Border Grid.Row="3" Background="#1a1a2e" BorderBrush="#2a2a4a" BorderThickness="0,1,0,0" Padding="20,10">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Left" Content="&#8592; Previous" Command="{Binding PreviousStepCommand}"
+                                Padding="12,6"
+                                Visibility="{Binding IsFirstStep, Converter={StaticResource InverseBoolVisibility}}"/>
+                        <Button DockPanel.Dock="Right" Content="Next Step &#8594;" Command="{Binding NextStepCommand}"
+                                Background="#20c997" Foreground="White" FontWeight="SemiBold" Padding="12,6"
+                                Visibility="{Binding IsLastStep, Converter={StaticResource InverseBoolVisibility}}"/>
+                        <StackPanel/>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
