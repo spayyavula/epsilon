@@ -68,6 +68,7 @@ public partial class App : Application
         services.AddTransient<DocumentsViewModel>();
         services.AddTransient<ResearchToolkitViewModel>();
         services.AddTransient<SolverViewModel>();
+        services.AddTransient<FlashcardViewModel>();
 
         // Configuration values
         services.AddSingleton(new AppConfig { DocsDirectory = docsDir });

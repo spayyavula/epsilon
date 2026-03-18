@@ -147,6 +147,28 @@ public class DatabaseService : IDisposable
                 is_default INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS proof_skills (
+                id TEXT PRIMARY KEY,
+                category TEXT NOT NULL,
+                level INTEGER NOT NULL DEFAULT 0,
+                problems_attempted INTEGER DEFAULT 0,
+                problems_solved INTEGER DEFAULT 0,
+                last_practiced TEXT,
+                UNIQUE(category)
+            );
+
+            CREATE TABLE IF NOT EXISTS flashcards (
+                id TEXT PRIMARY KEY,
+                front TEXT NOT NULL,
+                back TEXT NOT NULL,
+                category TEXT DEFAULT 'General',
+                ease_factor REAL DEFAULT 2.5,
+                interval_days INTEGER DEFAULT 1,
+                repetitions INTEGER DEFAULT 0,
+                next_review TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
         ";
         cmd.ExecuteNonQuery();
 
@@ -158,6 +180,9 @@ public class DatabaseService : IDisposable
             alter.ExecuteNonQuery();
         }
         catch { /* Column already exists */ }
+
+        // Seed default proof skill categories
+        SeedProofSkills();
 
         // Seed default math prompt
         using var check = _conn.CreateCommand();
@@ -740,6 +765,190 @@ public class DatabaseService : IDisposable
                 Content = reader.GetString(3),
                 IsDefault = reader.GetBoolean(4),
                 CreatedAt = DateTime.Parse(reader.GetString(5)),
+            });
+        }
+        return list;
+    }
+
+    // --- Proof Skills ---
+
+    private void SeedProofSkills()
+    {
+        var categories = new[]
+        {
+            "Direct Proof", "Contradiction", "Induction",
+            "Contrapositive", "Epsilon-Delta", "Cases"
+        };
+
+        foreach (var category in categories)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT OR IGNORE INTO proof_skills (id, category, level, problems_attempted, problems_solved)
+                VALUES ($id, $cat, 0, 0, 0)";
+            cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            cmd.Parameters.AddWithValue("$cat", category);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public List<ProofSkill> GetProofSkills()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT id, category, level, problems_attempted, problems_solved, last_practiced
+            FROM proof_skills ORDER BY category ASC";
+
+        var list = new List<ProofSkill>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new ProofSkill
+            {
+                Id = reader.GetString(0),
+                Category = reader.GetString(1),
+                Level = reader.GetInt32(2),
+                ProblemsAttempted = reader.GetInt32(3),
+                ProblemsSolved = reader.GetInt32(4),
+                LastPracticed = reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5)),
+            });
+        }
+        return list;
+    }
+
+    public void UpsertProofSkill(string category, bool solved)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO proof_skills (id, category, level, problems_attempted, problems_solved, last_practiced)
+            VALUES ($id, $cat, 0, 1, $solved, $now)
+            ON CONFLICT(category) DO UPDATE SET
+                problems_attempted = problems_attempted + 1,
+                problems_solved = problems_solved + $solved,
+                last_practiced = $now,
+                level = CASE
+                    WHEN (problems_solved + $solved) >= 20 THEN 3
+                    WHEN (problems_solved + $solved) >= 10 THEN 2
+                    WHEN (problems_solved + $solved) >= 4  THEN 1
+                    ELSE level
+                END";
+        cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+        cmd.Parameters.AddWithValue("$cat", category);
+        cmd.Parameters.AddWithValue("$solved", solved ? 1 : 0);
+        cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
+        cmd.ExecuteNonQuery();
+    }
+
+    // --- Flashcards ---
+
+    public void InsertFlashcard(Flashcard card)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            INSERT INTO flashcards (id, front, back, category, ease_factor, interval_days, repetitions, next_review, created_at)
+            VALUES ($id, $front, $back, $cat, $ef, $interval, $reps, $next, $created)";
+        cmd.Parameters.AddWithValue("$id", card.Id);
+        cmd.Parameters.AddWithValue("$front", card.Front);
+        cmd.Parameters.AddWithValue("$back", card.Back);
+        cmd.Parameters.AddWithValue("$cat", card.Category);
+        cmd.Parameters.AddWithValue("$ef", card.EaseFactor);
+        cmd.Parameters.AddWithValue("$interval", card.IntervalDays);
+        cmd.Parameters.AddWithValue("$reps", card.Repetitions);
+        cmd.Parameters.AddWithValue("$next", card.NextReview.ToString("o"));
+        cmd.Parameters.AddWithValue("$created", card.CreatedAt.ToString("o"));
+        cmd.ExecuteNonQuery();
+    }
+
+    public List<Flashcard> ListFlashcards()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT id, front, back, category, ease_factor, interval_days, repetitions, next_review, created_at
+            FROM flashcards ORDER BY next_review ASC";
+        return ReadFlashcards(cmd);
+    }
+
+    public List<Flashcard> GetDueFlashcards()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT id, front, back, category, ease_factor, interval_days, repetitions, next_review, created_at
+            FROM flashcards WHERE next_review <= $now ORDER BY next_review ASC";
+        cmd.Parameters.AddWithValue("$now", DateTime.UtcNow.ToString("o"));
+        return ReadFlashcards(cmd);
+    }
+
+    public void UpdateFlashcardReview(string id, int quality)
+    {
+        // SM-2 algorithm
+        var card = ListFlashcards().FirstOrDefault(c => c.Id == id);
+        if (card == null) return;
+
+        int newReps;
+        int newInterval;
+        double newEf;
+
+        if (quality >= 3)
+        {
+            newReps = card.Repetitions + 1;
+            newInterval = newReps switch
+            {
+                1 => 1,
+                2 => 6,
+                _ => (int)Math.Round(card.IntervalDays * card.EaseFactor),
+            };
+            newEf = Math.Max(1.3, card.EaseFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+        }
+        else
+        {
+            newReps = 0;
+            newInterval = 1;
+            newEf = card.EaseFactor; // EF unchanged on failure in SM-2
+        }
+
+        var nextReview = DateTime.UtcNow.AddDays(newInterval);
+
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = @"
+            UPDATE flashcards SET
+                repetitions = $reps,
+                interval_days = $interval,
+                ease_factor = $ef,
+                next_review = $next
+            WHERE id = $id";
+        cmd.Parameters.AddWithValue("$reps", newReps);
+        cmd.Parameters.AddWithValue("$interval", newInterval);
+        cmd.Parameters.AddWithValue("$ef", newEf);
+        cmd.Parameters.AddWithValue("$next", nextReview.ToString("o"));
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void DeleteFlashcard(string id)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM flashcards WHERE id = $id";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    private List<Flashcard> ReadFlashcards(SqliteCommand cmd)
+    {
+        var list = new List<Flashcard>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Flashcard
+            {
+                Id = reader.GetString(0),
+                Front = reader.GetString(1),
+                Back = reader.GetString(2),
+                Category = reader.GetString(3),
+                EaseFactor = reader.GetDouble(4),
+                IntervalDays = reader.GetInt32(5),
+                Repetitions = reader.GetInt32(6),
+                NextReview = DateTime.Parse(reader.GetString(7)),
+                CreatedAt = DateTime.Parse(reader.GetString(8)),
             });
         }
         return list;

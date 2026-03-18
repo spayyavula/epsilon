@@ -40,6 +40,8 @@ public partial class SolverViewModel : ObservableObject
     public event Action<string>? SolutionStreaming;
     public event Action? SolutionFinished;
     public event Action? ViewCleared;
+    public event Action<string>? ShowAdaptiveLinks;
+    public event Action<string, string>? NavigateToToolRequested;
 
     public SolverViewModel(DatabaseService db, ProviderRegistry registry)
     {
@@ -124,6 +126,7 @@ public partial class SolverViewModel : ObservableObject
 
             SolutionFinished?.Invoke();
             StatusMessage = "Solution complete.";
+            ShowAdaptiveLinks?.Invoke(equation);
         }
         catch (OperationCanceledException)
         {
@@ -146,6 +149,9 @@ public partial class SolverViewModel : ObservableObject
     private bool CanSolve() => !IsSolving && !string.IsNullOrWhiteSpace(EquationInput);
 
     partial void OnEquationInputChanged(string value) => SolveCommand.NotifyCanExecuteChanged();
+
+    public void RaiseNavigateToTool(string toolType, string equation)
+        => NavigateToToolRequested?.Invoke(toolType, equation);
 
     [RelayCommand]
     private void Cancel() => _solveCts?.Cancel();

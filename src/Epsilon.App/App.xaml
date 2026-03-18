@@ -27,6 +27,7 @@
             <conv:WebToggleForegroundConverter x:Key="WebToggleFg" />
             <conv:WebToggleTextConverter x:Key="WebToggleText" />
             <conv:EmptyStringVisibilityConverter x:Key="EmptyVisibility" />
+            <conv:NullToVisibilityConverter x:Key="NullVisibility" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

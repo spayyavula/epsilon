@@ -25,6 +25,9 @@
         <DataTemplate DataType="{x:Type vm:SolverViewModel}">
             <views:SolverView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:FlashcardViewModel}">
+            <views:FlashcardView />
+        </DataTemplate>
     </ui:FluentWindow.Resources>
 
     <Grid>
@@ -70,6 +73,10 @@
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Padding="12,8" Margin="0,2"
                             Background="{Binding ActiveTab, Converter={StaticResource TabBrush}, ConverterParameter=Toolkit}"/>
+                    <Button Content="&#128218;  Flashcards" Command="{Binding NavigateToFlashcardsCommand}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Padding="12,8" Margin="0,2"
+                            Background="{Binding ActiveTab, Converter={StaticResource TabBrush}, ConverterParameter=Flashcards}"/>
                     <Button Content="&#9881;  Settings" Command="{Binding NavigateToSettingsCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                             Padding="12,8" Margin="0,2"

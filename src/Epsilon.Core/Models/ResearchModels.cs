@@ -1,5 +1,28 @@
 namespace Epsilon.Core.Models;
 
+public class ProofSkill
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Category { get; set; } = "";
+    public int Level { get; set; } // 0=Beginner, 1=Intermediate, 2=Advanced, 3=Expert
+    public int ProblemsAttempted { get; set; }
+    public int ProblemsSolved { get; set; }
+    public DateTime? LastPracticed { get; set; }
+}
+
+public class Flashcard
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Front { get; set; } = "";
+    public string Back { get; set; } = "";
+    public string Category { get; set; } = "General";
+    public double EaseFactor { get; set; } = 2.5;
+    public int IntervalDays { get; set; } = 1;
+    public int Repetitions { get; set; }
+    public DateTime NextReview { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class ResearchProject
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();

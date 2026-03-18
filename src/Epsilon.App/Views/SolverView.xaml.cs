@@ -27,11 +27,13 @@ public partial class SolverView : UserControl
         _vm.SolutionStreaming += OnStreaming;
         _vm.SolutionFinished += OnFinished;
         _vm.ViewCleared += OnCleared;
+        _vm.ShowAdaptiveLinks += OnShowAdaptiveLinks;
 
         if (!_webViewReady)
         {
             var env = await CoreWebView2Environment.CreateAsync();
             await SolverWebView.EnsureCoreWebView2Async(env);
+            SolverWebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
             _webViewReady = true;
             SolverWebView.NavigateToString(GetSolverHtml());
         }
@@ -44,6 +46,41 @@ public partial class SolverView : UserControl
             _vm.SolutionStreaming -= OnStreaming;
             _vm.SolutionFinished -= OnFinished;
             _vm.ViewCleared -= OnCleared;
+            _vm.ShowAdaptiveLinks -= OnShowAdaptiveLinks;
+        }
+    }
+
+    private void OnShowAdaptiveLinks(string equation)
+    {
+        if (!_webViewReady) return;
+        Dispatcher.InvokeAsync(async () =>
+        {
+            var json = JsonSerializer.Serialize(equation);
+            await SolverWebView.ExecuteScriptAsync($"showAdaptiveLinks({json})");
+        });
+    }
+
+    private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        var msg = e.TryGetWebMessageAsString();
+        // Format: "navigate:ToolType:equation text"
+        if (msg != null && msg.StartsWith("navigate:"))
+        {
+            var parts = msg.Split(':', 3);
+            if (parts.Length == 3)
+            {
+                var toolType = parts[1];
+                var equation = parts[2];
+                _vm?.RaiseNavigateToTool(toolType, equation);
+
+                // Navigate via MainViewModel
+                Dispatcher.Invoke(() =>
+                {
+                    var window = Window.GetWindow(this);
+                    if (window?.DataContext is MainViewModel mainVm)
+                        mainVm.NavigateToToolWithContextCommand.Execute($"{toolType}|{equation}");
+                });
+            }
         }
     }
 
@@ -220,7 +257,67 @@ public partial class SolverView : UserControl
           function clearSolution() {
             solution.innerHTML = '';
           }
+
+          function showAdaptiveLinks(equation) {
+            // Remove any existing links panel
+            const existing = document.getElementById('adaptive-links');
+            if (existing) existing.remove();
+
+            const cards = [
+              { icon: '🔍', label: 'Understand Why', tool: 'ConceptExplorer' },
+              { icon: '📐', label: 'Build a Proof',  tool: 'ProofBuilder'    },
+              { icon: '🌐', label: 'See in Lean 4',  tool: 'LeanBridge'      },
+              { icon: '🎯', label: 'Practice Similar', tool: 'PracticeMode'  },
+            ];
+
+            const panel = document.createElement('div');
+            panel.id = 'adaptive-links';
+            panel.innerHTML = `
+              <div class="al-header">WHAT'S NEXT?</div>
+              <div class="al-cards">
+                ${cards.map(c => `
+                  <div class="al-card" onclick="navigateTo('${c.tool}', equation)">
+                    <span class="al-icon">${c.icon}</span>
+                    <span class="al-label">${c.label}</span>
+                  </div>`).join('')}
+              </div>`;
+
+            // Store equation on panel for onclick
+            panel._equation = equation;
+            solution.appendChild(panel);
+
+            // Attach click handlers with correct equation closure
+            panel.querySelectorAll('.al-card').forEach((el, i) => {
+              el.addEventListener('click', () => {
+                window.chrome.webview.postMessage('navigate:' + cards[i].tool + ':' + equation);
+              });
+            });
+          }
         </script>
+        <style>
+          #adaptive-links {
+            margin-top: 28px;
+            background: #141428;
+            border: 1px solid #2a2a5a;
+            border-radius: 10px;
+            padding: 16px 20px;
+          }
+          .al-header {
+            font-size: 11px; font-weight: 700; letter-spacing: 1px;
+            color: #555; margin-bottom: 12px;
+          }
+          .al-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+          .al-card {
+            display: flex; align-items: center; gap: 8px;
+            background: #1a1a3a; border: 1px solid #2a2a5a;
+            border-radius: 8px; padding: 10px 16px;
+            cursor: pointer; transition: background 0.15s, border-color 0.15s;
+            user-select: none;
+          }
+          .al-card:hover { background: #20c99720; border-color: #20c997; }
+          .al-icon { font-size: 18px; }
+          .al-label { font-size: 13px; color: #ccc; font-weight: 500; }
+        </style>
         </body>
         </html>
         """;

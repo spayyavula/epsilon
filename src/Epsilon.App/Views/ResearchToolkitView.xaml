@@ -135,10 +135,18 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- Export button at bottom -->
-                    <Button DockPanel.Dock="Bottom" Content="Export PDF" Command="{Binding ExportProjectCommand}"
-                            Background="#f59f00" Foreground="Black" FontWeight="SemiBold"
-                            Padding="12,8" Margin="12,8,12,12" HorizontalAlignment="Stretch"/>
+                    <!-- Export buttons at bottom -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,4,12,12">
+                        <Button Content="Export PDF" Command="{Binding ExportProjectCommand}"
+                                Background="#f59f00" Foreground="Black" FontWeight="SemiBold"
+                                Padding="12,7" Margin="0,0,0,4" HorizontalAlignment="Stretch"/>
+                        <Button Content="Export LaTeX (.tex)" Command="{Binding ExportLatexCommand}"
+                                Background="#2a4a6a" Foreground="#4ca6ff" FontWeight="SemiBold"
+                                Padding="12,7" Margin="0,0,0,4" HorizontalAlignment="Stretch"/>
+                        <Button Content="Export .lean" Command="{Binding ExportLeanCommand}"
+                                Background="#1a2a4a" Foreground="#7c9ef5" FontWeight="SemiBold"
+                                Padding="12,7" HorizontalAlignment="Stretch"/>
+                    </StackPanel>
                     <StackPanel/>
                 </DockPanel>
             </Border>

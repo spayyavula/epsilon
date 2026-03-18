@@ -384,6 +384,73 @@ public partial class ResearchToolkitViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ExportLatex()
+    {
+        if (ActiveProject == null || ActiveTool == null) return;
+
+        try
+        {
+            SaveCurrentInput();
+            var steps = _service.GetSteps(ActiveProject.Id);
+            var filePath = LatexExporter.Export(ActiveProject, steps, ActiveTool, _docsDir);
+
+            StatusMessage = $"LaTeX exported to {Path.GetFileName(filePath)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"LaTeX export failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void ExportLean()
+    {
+        if (ActiveProject == null || ActiveTool == null) return;
+
+        try
+        {
+            SaveCurrentInput();
+            var steps = _service.GetSteps(ActiveProject.Id);
+
+            // Find LeanBridge step content (step index 1 has the Lean code)
+            var leanStep = steps.FirstOrDefault(s => s.StepIndex == 1 && !string.IsNullOrEmpty(s.GeneratedContent))
+                        ?? steps.FirstOrDefault(s => !string.IsNullOrEmpty(s.GeneratedContent));
+
+            if (leanStep == null)
+            {
+                StatusMessage = "No generated content to export.";
+                return;
+            }
+
+            var filePath = LeanExporter.ExportLeanProject(leanStep.GeneratedContent, ActiveProject.Title, _docsDir);
+            StatusMessage = $"Lean file exported to {Path.GetFileName(filePath)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Lean export failed: {ex.Message}";
+        }
+    }
+
+    public void NewProjectWithContext(string toolType, string prefill)
+    {
+        var project = _service.CreateProject(toolType, SelectedProviderId, SelectedModelId);
+        Projects.Insert(0, project);
+        OpenProjectInternal(project);
+
+        // Pre-fill step 0
+        if (!string.IsNullOrWhiteSpace(prefill))
+        {
+            CurrentStepInput = prefill;
+            var step = _steps.FirstOrDefault(s => s.StepIndex == 0);
+            if (step != null)
+            {
+                step.UserInput = prefill;
+                _service.SaveStep(step);
+            }
+        }
+    }
+
     private void SaveCurrentInput()
     {
         if (ActiveProject == null) return;
