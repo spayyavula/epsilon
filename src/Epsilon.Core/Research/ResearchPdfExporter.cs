@@ -153,14 +153,43 @@ internal static class LatexToUnicode
         t = Regex.Replace(t, @"\\sqrt\{([^}]*)\}", "√($1)");
         t = t.Replace("\\sqrt", "√");
 
-        // \frac{a}{b} → (a)/(b) or a/b for simple cases
+        // ── Derivative fractions (BEFORE general \frac) ──
+
+        // \frac{\partial^2 f}{\partial x \partial y} → ∂²f/∂x∂y
+        t = Regex.Replace(t, @"\\(?:d?frac|tfrac|cfrac)\{\\partial\^?\{?(\w*)\}?\s*([^}]*)\}\{\\partial\s+([^}]*)\}", m =>
+        {
+            var order = m.Groups[1].Value;
+            var func = m.Groups[2].Value.Trim();
+            var vars = m.Groups[3].Value.Trim();
+            // Convert \partial to ∂ in denominator
+            vars = vars.Replace("\\partial", "∂");
+            var orderStr = string.IsNullOrEmpty(order) ? "" : ToSuperscript(order);
+            return $"∂{orderStr}{func}/∂{vars}";
+        });
+
+        // \frac{d^2 f}{dx^2} → d²f/dx²
+        t = Regex.Replace(t, @"\\(?:d?frac|tfrac|cfrac)\{d\^?\{?(\w*)\}?\s*([^}]*)\}\{d([^}]*)\}", m =>
+        {
+            var order = m.Groups[1].Value;
+            var func = m.Groups[2].Value.Trim();
+            var vars = m.Groups[3].Value.Trim();
+            var orderStr = string.IsNullOrEmpty(order) ? "" : ToSuperscript(order);
+            return $"d{orderStr}{func}/d{vars}";
+        });
+
+        // \frac{a}{b} → a/b (smart parens only when needed)
         t = Regex.Replace(t, @"\\(?:d?frac|tfrac|cfrac)\{([^}]*)\}\{([^}]*)\}", m =>
         {
             var num = m.Groups[1].Value.Trim();
             var den = m.Groups[2].Value.Trim();
-            if (num.Length <= 3 && den.Length <= 3)
+            // Simple numerator/denominator: no parens needed
+            bool numSimple = num.Length <= 5 && !num.Contains(' ') && !num.Contains('+') && !num.Contains('-');
+            bool denSimple = den.Length <= 5 && !den.Contains(' ') && !den.Contains('+') && !den.Contains('-');
+            if (numSimple && denSimple)
                 return $"{num}/{den}";
-            return $"({num})/({den})";
+            var n = numSimple ? num : $"({num})";
+            var d = denSimple ? den : $"({den})";
+            return $"{n}/{d}";
         });
 
         // \binom{n}{k} → C(n,k)
@@ -289,6 +318,12 @@ internal static class LatexToUnicode
         t = t.Replace("\\iiint", "∭").Replace("\\iint", "∬");
         t = t.Replace("\\oint", "∮").Replace("\\int", "∫");
         t = t.Replace("\\sum", "∑").Replace("\\prod", "∏");
+
+        // Calculus — partial and nabla with superscripts
+        t = Regex.Replace(t, @"\\partial\^\{([^}]*)\}", m => "∂" + ToSuperscript(m.Groups[1].Value));
+        t = Regex.Replace(t, @"\\partial\^(\w)", m => "∂" + ToSuperscript(m.Groups[1].Value));
+        t = Regex.Replace(t, @"\\nabla\^\{([^}]*)\}", m => "∇" + ToSuperscript(m.Groups[1].Value));
+        t = Regex.Replace(t, @"\\nabla\^(\w)", m => "∇" + ToSuperscript(m.Groups[1].Value));
 
         // Misc symbols
         t = t.Replace("\\infty", "∞").Replace("\\partial", "∂").Replace("\\nabla", "∇");
