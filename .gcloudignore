@@ -1,0 +1,13 @@
+.git
+.omc
+.gitignore
+node_modules
+**/node_modules
+**/bin
+**/obj
+**/dist
+epsilon/
+src/Epsilon.App/
+*.md
+.vs
+.vscode
